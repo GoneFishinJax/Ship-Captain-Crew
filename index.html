@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ship, Captain, and Crew</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="game-container">
+        <header>
+            <h1>Ship, Captain, and Crew</h1>
+            <p class="subtitle">Roll for 6 (Ship), 5 (Captain), and 4 (Crew)!</p>
+        </header>
+
+        <div class="game-info">
+            <div class="player-info">
+                <h2>You</h2>
+                <p>Score: <span id="player-score">0</span></p>
+                <p>Turn Score: <span id="player-turn-score">0</span></p>
+            </div>
+            <div class="player-info">
+                <h2>Computer</h2>
+                <p>Score: <span id="computer-score">0</span></p>
+                <p>Turn Score: <span id="computer-turn-score">0</span></p>
+            </div>
+        </div>
+
+        <div class="game-status" id="game-status">
+            <p>Your turn! Click "Roll Dice" to start.</p>
+        </div>
+
+        <div class="dice-container">
+            <div class="dice-area" id="player-dice-area">
+                <div class="dice" id="player-die-0">?</div>
+                <div class="dice" id="player-die-1">?</div>
+                <div class="dice" id="player-die-2">?</div>
+                <div class="dice" id="player-die-3">?</div>
+                <div class="dice" id="player-die-4">?</div>
+            </div>
+            <div class="dice-area computer-area" id="computer-dice-area">
+                <div class="dice" id="computer-die-0">?</div>
+                <div class="dice" id="computer-die-1">?</div>
+                <div class="dice" id="computer-die-2">?</div>
+                <div class="dice" id="computer-die-3">?</div>
+                <div class="dice" id="computer-die-4">?</div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button id="roll-btn" class="btn">Roll Dice</button>
+            <button id="keep-btn" class="btn" disabled>Keep Selected</button>
+            <button id="end-turn-btn" class="btn" disabled>End Turn</button>
+        </div>
+
+        <div class="instructions">
+            <h3>How to Play:</h3>
+            <ol>
+                <li>Roll the dice to get a 6 (Ship), 5 (Captain), and 4 (Crew)</li>
+                <li>Click on dice to select which ones to keep</li>
+                <li>Click "Keep Selected" to set aside chosen dice</li>
+                <li>Roll remaining dice up to 3 times total</li>
+                <li>Once you have Ship, Captain, and Crew, the remaining dice sum is your score</li>
+            </ol>
+        </div>
+
+        <div class="round-info">
+            <p>Round: <span id="round-number">1</span></p>
+            <p>Rolls remaining: <span id="rolls-remaining">3</span></p>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
