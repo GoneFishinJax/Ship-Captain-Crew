@@ -16,6 +16,11 @@ class ShipCaptainCrew {
         this.hasShipCaptainCrew = false;
         this.gameOver = false;
         
+        // NEW: Track which special dice have been kept
+        this.hasShipKept = false; // 6
+        this.hasCaptainKept = false; // 5
+        this.hasCrewKept = false; // 4
+        
         // DOM elements
         this.playerScoreEl = document.getElementById('player-score');
         this.computerScoreEl = document.getElementById('computer-score');
@@ -40,11 +45,76 @@ class ShipCaptainCrew {
             this.computerDiceEls.push(document.getElementById(`computer-die-${i}`));
         }
         
+        // Create confetti container
+        this.createConfettiContainer();
+        
         // Event listeners
         this.setupEventListeners();
         
         // Initialize game
         this.updateDisplay();
+    }
+    
+    createConfettiContainer() {
+        this.confettiContainer = document.createElement('div');
+        this.confettiContainer.id = 'confetti-container';
+        this.confettiContainer.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1000;
+            overflow: hidden;
+        `;
+        document.body.appendChild(this.confettiContainer);
+    }
+    
+    throwConfetti(amount = 10) {
+        // Clear existing confetti
+        this.confettiContainer.innerHTML = '';
+        
+        const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff', '#ff8800', '#ff0088'];
+        
+        for (let i = 0; i < amount; i++) {
+            const confetti = document.createElement('div');
+            confetti.style.cssText = `
+                position: absolute;
+                width: 10px;
+                height: 10px;
+                background: ${colors[Math.floor(Math.random() * colors.length)]};
+                left: ${Math.random() * 100}%;
+                top: -10px;
+                border-radius: ${Math.random() > 0.5 ? '50%' : '0'};
+                animation: confettiFall ${1 + Math.random() * 2}s linear forwards;
+            `;
+            this.confettiContainer.appendChild(confetti);
+        }
+        
+        // Add animation if not already present
+        if (!document.getElementById('confetti-style')) {
+            const style = document.createElement('style');
+            style.id = 'confetti-style';
+            style.textContent = `
+                @keyframes confettiFall {
+                    0% {
+                        transform: translateY(0) rotate(0deg);
+                        opacity: 1;
+                    }
+                    100% {
+                        transform: translateY(100vh) rotate(720deg);
+                        opacity: 0;
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        // Remove confetti after animation
+        setTimeout(() => {
+            this.confettiContainer.innerHTML = '';
+        }, 3000);
     }
     
     setupEventListeners() {
@@ -73,6 +143,22 @@ class ShipCaptainCrew {
         
         if (dieEl.classList.contains('kept')) {
             return; // Already kept, can't deselect
+        }
+        
+        const dieValue = this.playerDice[index];
+        
+        // NEW RULE: Must have a 6 before you can select and save a 5 or 4
+        // You can select a 6 & 5 in one roll, or 6, 5 & 4 in one roll
+        if (dieValue === 5 && !this.hasShipKept) {
+            // Cannot select 5 without having 6 already kept
+            this.gameStatusEl.innerHTML = '<p>You must have a 6 (Ship) before you can select a 5 (Captain)!</p>';
+            return;
+        }
+        
+        if (dieValue === 4 && !this.hasShipKept) {
+            // Cannot select 4 without having 6 already kept
+            this.gameStatusEl.innerHTML = '<p>You must have a 6 (Ship) before you can select a 4 (Crew)!</p>';
+            return;
         }
         
         // Toggle selection
@@ -160,7 +246,7 @@ class ShipCaptainCrew {
     rollComputerDice() {
         // Computer AI: decide which dice to keep
         if (this.rollsRemaining === 2) {
-            // First roll - keep ship, captain, crew if present
+            // First roll - keep ship, captain, crew if present (following the same rules)
             this.computerSelectDice();
         }
         
@@ -195,23 +281,41 @@ class ShipCaptainCrew {
     }
     
     computerSelectDice() {
-        // Computer AI logic to select which dice to keep
+        // Computer AI logic to select which dice to keep (following the same rules)
         const dice = this.computerDice;
         const keptIndices = [];
         
-        // Always keep ship (6), captain (5), crew (4)
+        // Always keep ship (6) first
         for (let i = 0; i < 5; i++) {
             if (!this.computerDiceEls[i].classList.contains('kept')) {
-                if (dice[i] === 6 || dice[i] === 5 || dice[i] === 4) {
+                if (dice[i] === 6) {
                     keptIndices.push(i);
                 }
             }
         }
         
+        // Only keep captain (5) or crew (4) if we already have ship (6)
+        const hasShip = this.hasShipKept || dice.some((val, idx) => 
+            val === 6 && this.computerDiceEls[idx].classList.contains('kept')
+        );
+        
+        if (hasShip) {
+            for (let i = 0; i < 5; i++) {
+                if (!this.computerDiceEls[i].classList.contains('kept')) {
+                    if (dice[i] === 5 || dice[i] === 4) {
+                        keptIndices.push(i);
+                    }
+                }
+            }
+        }
+        
         // If we have ship, captain, crew, we're done
-        const hasShip = dice.includes(6);
-        const hasCaptain = dice.includes(5);
-        const hasCrew = dice.includes(4);
+        const hasCaptain = dice.some((val, idx) => 
+            val === 5 && this.computerDiceEls[idx].classList.contains('kept')
+        );
+        const hasCrew = dice.some((val, idx) => 
+            val === 4 && this.computerDiceEls[idx].classList.contains('kept')
+        );
         
         if (hasShip && hasCaptain && hasCrew) {
             // Keep all ship, captain, crew
@@ -220,7 +324,7 @@ class ShipCaptainCrew {
         }
         
         // If we have two of ship, captain, crew, keep them
-        if ((hasShip && hasCaptain) || (hasShip && hasCrew) || (hasCaptain && hasCrew)) {
+        if ((hasShip && hasCaptain) || (hasShip && hasCrew)) {
             this.keepComputerDice(keptIndices);
             return;
         }
@@ -246,37 +350,63 @@ class ShipCaptainCrew {
     
     keepComputerDice(indices) {
         // Mark computer dice as kept
+        let specialCount = 0;
+        
         indices.forEach(index => {
             this.computerDiceEls[index].classList.add('kept');
             
-            // Add special classes for ship, captain, crew
+            // Track which special dice are kept
             if (this.computerDice[index] === 6) {
+                this.hasShipKept = true;
                 this.computerDiceEls[index].classList.add('ship');
+                specialCount++;
             } else if (this.computerDice[index] === 5) {
+                this.hasCaptainKept = true;
                 this.computerDiceEls[index].classList.add('captain');
+                specialCount++;
             } else if (this.computerDice[index] === 4) {
+                this.hasCrewKept = true;
                 this.computerDiceEls[index].classList.add('crew');
+                specialCount++;
             }
         });
+        
+        // Throw confetti based on number of special dice kept
+        if (specialCount > 0) {
+            this.throwConfetti(specialCount * 15); // More confetti for more special dice
+        }
     }
     
     keepSelectedDice() {
         if (this.selectedIndices.length === 0 || this.currentPlayer !== 'player') return;
         
         // Mark selected dice as kept
+        let specialCount = 0;
+        
         this.selectedIndices.forEach(index => {
             this.playerDiceEls[index].classList.add('kept');
             this.playerDiceEls[index].classList.remove('selected');
             
-            // Add special classes for ship, captain, crew
+            // Track which special dice are kept
             if (this.playerDice[index] === 6) {
+                this.hasShipKept = true;
                 this.playerDiceEls[index].classList.add('ship');
+                specialCount++;
             } else if (this.playerDice[index] === 5) {
+                this.hasCaptainKept = true;
                 this.playerDiceEls[index].classList.add('captain');
+                specialCount++;
             } else if (this.playerDice[index] === 4) {
+                this.hasCrewKept = true;
                 this.playerDiceEls[index].classList.add('crew');
+                specialCount++;
             }
         });
+        
+        // Throw confetti based on number of special dice kept
+        if (specialCount > 0) {
+            this.throwConfetti(specialCount * 15); // More confetti for more special dice
+        }
         
         // Clear selection
         this.selectedIndices = [];
@@ -301,6 +431,15 @@ class ShipCaptainCrew {
         
         this.hasShipCaptainCrew = hasShip && hasCaptain && hasCrew;
         
+        // Update tracking for current player
+        if (player === 'player') {
+            this.hasShipKept = hasShip;
+            this.hasCaptainKept = hasCaptain;
+            this.hasCrewKept = hasCrew;
+        } else {
+            // For computer, update separate tracking if needed
+        }
+        
         // Highlight the ship, captain, crew dice
         if (this.hasShipCaptainCrew) {
             diceEls.forEach((el, idx) => {
@@ -323,11 +462,9 @@ class ShipCaptainCrew {
         if (this.currentPlayer === 'player') {
             // Calculate player's turn score
             if (this.hasShipCaptainCrew) {
-                // Sum all non-kept dice
-                this.playerDice.forEach((val, idx) => {
-                    if (!this.playerDiceEls[idx].classList.contains('kept')) {
-                        turnScore += val;
-                    }
+                // Sum ALL five dice (rule change: leaving two more rolls for highest total of all five dice)
+                this.playerDice.forEach(val => {
+                    turnScore += val;
                 });
                 this.playerScore += turnScore;
                 this.playerTurnScoreEl.textContent = turnScore;
@@ -350,6 +487,9 @@ class ShipCaptainCrew {
             // Reset state for computer's turn
             this.rollsRemaining = 3;
             this.hasShipCaptainCrew = false;
+            this.hasShipKept = false;
+            this.hasCaptainKept = false;
+            this.hasCrewKept = false;
             this.computerTurnScoreEl.textContent = '0';
             
             // Computer takes its turn
@@ -360,11 +500,9 @@ class ShipCaptainCrew {
         } else {
             // Calculate computer's turn score
             if (this.hasShipCaptainCrew) {
-                // Sum all non-kept dice
-                this.computerDice.forEach((val, idx) => {
-                    if (!this.computerDiceEls[idx].classList.contains('kept')) {
-                        turnScore += val;
-                    }
+                // Sum ALL five dice (rule change)
+                this.computerDice.forEach(val => {
+                    turnScore += val;
                 });
                 this.computerScore += turnScore;
                 this.computerTurnScoreEl.textContent = turnScore;
@@ -397,6 +535,9 @@ class ShipCaptainCrew {
             this.selectedIndices = [];
             this.rollsRemaining = 3;
             this.hasShipCaptainCrew = false;
+            this.hasShipKept = false;
+            this.hasCaptainKept = false;
+            this.hasCrewKept = false;
             this.playerTurnScoreEl.textContent = '0';
         }
         
@@ -451,6 +592,9 @@ class ShipCaptainCrew {
         this.keptDice = [];
         this.selectedIndices = [];
         this.hasShipCaptainCrew = false;
+        this.hasShipKept = false;
+        this.hasCaptainKept = false;
+        this.hasCrewKept = false;
         this.gameOver = false;
         
         // Reset all dice elements
