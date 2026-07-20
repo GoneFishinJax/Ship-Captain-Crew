@@ -285,7 +285,18 @@ class ShipCaptainCrew {
         const dice = this.computerDice;
         const keptIndices = [];
         
-        // Always keep ship (6) first
+        // Check what the computer currently has kept
+        const computerHasShip = this.computerDiceEls.some(el => 
+            el.classList.contains('kept') && el.classList.contains('ship')
+        );
+        const computerHasCaptain = this.computerDiceEls.some(el => 
+            el.classList.contains('kept') && el.classList.contains('captain')
+        );
+        const computerHasCrew = this.computerDiceEls.some(el => 
+            el.classList.contains('kept') && el.classList.contains('crew')
+        );
+        
+        // Always keep ship (6) first - this is always allowed
         for (let i = 0; i < 5; i++) {
             if (!this.computerDiceEls[i].classList.contains('kept')) {
                 if (dice[i] === 6) {
@@ -294,15 +305,15 @@ class ShipCaptainCrew {
             }
         }
         
-        // Only keep captain (5) or crew (4) if we already have ship (6)
-        const hasShip = this.hasShipKept || dice.some((val, idx) => 
-            val === 6 && this.computerDiceEls[idx].classList.contains('kept')
-        );
+        // Only keep captain (5) or crew (4) if we already have ship (6) kept
+        const canKeepCaptainAndCrew = computerHasShip || keptIndices.some(i => dice[i] === 6);
         
-        if (hasShip) {
+        if (canKeepCaptainAndCrew) {
             for (let i = 0; i < 5; i++) {
                 if (!this.computerDiceEls[i].classList.contains('kept')) {
-                    if (dice[i] === 5 || dice[i] === 4) {
+                    if (dice[i] === 5) {
+                        keptIndices.push(i);
+                    } else if (dice[i] === 4) {
                         keptIndices.push(i);
                     }
                 }
@@ -310,27 +321,26 @@ class ShipCaptainCrew {
         }
         
         // If we have ship, captain, crew, we're done
-        const hasCaptain = dice.some((val, idx) => 
-            val === 5 && this.computerDiceEls[idx].classList.contains('kept')
-        );
-        const hasCrew = dice.some((val, idx) => 
-            val === 4 && this.computerDiceEls[idx].classList.contains('kept')
-        );
-        
-        if (hasShip && hasCaptain && hasCrew) {
+        if ((computerHasShip || keptIndices.some(i => dice[i] === 6)) &&
+            (computerHasCaptain || keptIndices.some(i => dice[i] === 5)) &&
+            (computerHasCrew || keptIndices.some(i => dice[i] === 4))) {
             // Keep all ship, captain, crew
             this.keepComputerDice(keptIndices);
             return;
         }
         
         // If we have two of ship, captain, crew, keep them
-        if ((hasShip && hasCaptain) || (hasShip && hasCrew)) {
+        const hasTwo = (computerHasShip || keptIndices.some(i => dice[i] === 6)) +
+                       (computerHasCaptain || keptIndices.some(i => dice[i] === 5)) +
+                       (computerHasCrew || keptIndices.some(i => dice[i] === 4)) >= 2;
+        
+        if (hasTwo && keptIndices.length > 0) {
             this.keepComputerDice(keptIndices);
             return;
         }
         
-        // If we have one of ship, captain, crew, keep it
-        if (hasShip || hasCaptain || hasCrew) {
+        // If we have ship (6) alone, keep it
+        if ((computerHasShip || keptIndices.some(i => dice[i] === 6)) && keptIndices.length > 0) {
             this.keepComputerDice(keptIndices);
             return;
         }
